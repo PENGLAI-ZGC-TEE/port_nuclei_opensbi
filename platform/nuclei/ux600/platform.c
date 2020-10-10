@@ -118,6 +118,7 @@ static int ux600_early_init(bool cold_boot)
 	regval = readl((void *)(UX600_GPIO_ADDR + UX600_GPIO_IOF_EN_OFS)) |
 		UX600_GPIO_IOF_UART0_MASK;
 	writel(regval, (void *)(UX600_GPIO_ADDR + UX600_GPIO_IOF_EN_OFS));
+
 	return 0;
 }
 
@@ -135,6 +136,10 @@ static int ux600_final_init(bool cold_boot)
 
 	fdt = sbi_scratch_thishart_arg1_ptr();
 	ux600_modify_dt(fdt);
+
+    // Enable U-Mode to access all regions by setting spmpcfg0 and spmpaddr0
+    csr_write(0x1a0, 0x1f);
+    csr_write(0x1b0, 0xffffffff);
 
 	return 0;
 }
