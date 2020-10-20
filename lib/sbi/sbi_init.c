@@ -210,6 +210,8 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	if (!(scratch->options & SBI_SCRATCH_NO_BOOT_PRINTS))
 		sbi_boot_prints(scratch, hartid);
 
+	sbi_printf("[Penglai] Penglai enclave preparing\n");
+
 	wake_coldboot_harts(scratch, hartid);
 
 	init_count = sbi_scratch_offset_ptr(scratch, init_count_offset);
