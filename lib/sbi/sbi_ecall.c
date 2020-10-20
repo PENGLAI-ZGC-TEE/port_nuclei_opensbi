@@ -109,6 +109,13 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 	args[4] = regs->a4;
 	args[5] = regs->a5;
 
+	if (extension_id == SBI_EXT_BASE){
+		/* FIXME: hacking, when extension id is base, put regs into last args
+		 * currently this reg will not be used by any base functions
+		 * */
+		args[5] = (unsigned long) regs;
+	}
+
 	ext = sbi_ecall_find_extension(extension_id);
 	if (ext && ext->handle) {
 		ret = ext->handle(extension_id, func_id,
