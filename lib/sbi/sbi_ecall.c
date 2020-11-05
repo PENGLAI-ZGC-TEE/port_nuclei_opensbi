@@ -12,6 +12,9 @@
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_trap.h>
 
+#include <sbi/sbi_console.h>
+#include <sbi/riscv_asm.h>
+#include <sbi/riscv_encoding.h>
 u16 sbi_ecall_version_major(void)
 {
 	return SBI_ECALL_VERSION_MAJOR;
@@ -91,6 +94,104 @@ void sbi_ecall_unregister_extension(struct sbi_ecall_extension *ext)
 		sbi_list_del_init(&ext->head);
 }
 
+static inline int valid_pte(unsigned long pte){
+	return (pte & 0x1);
+}
+static inline int is_leaf_pt_page(unsigned long pte){
+	return ((pte & 0xf) != 0x1);
+}
+
+/*
+ * level: 0 (root_pt_page), 1 (2nd pt page), 2 (last pt page), 3 (the leaf pte)
+ * */
+void dd_debug_dump_pt(unsigned long pte, int level)
+{
+	int i;
+	unsigned long * pt_page;
+
+	/* Return if we are @ last pt page */
+	if (level==3){ //It's always a valid entry checked by prior func
+		sbi_printf("      0x%x\n", pte);
+		return;
+	}
+
+	for (i=0;i<level;i++)
+		sbi_printf("  ");
+	sbi_printf("0x%x\n", pte);
+
+	/* Return if we are leaf page */
+	if (level!=0 && is_leaf_pt_page(pte))
+		return;
+
+	/* Remove the attribute bits and re-align the addr */
+	if (level!=0) {// root is handled specially
+		pt_page = (unsigned long*) (((unsigned long)pte >> 10ul) << 12ul);
+	}
+	else {
+	pt_page = (unsigned long*) pte;
+	}
+
+
+	for (i=0; i<512; i++){
+		if (valid_pte(pt_page[i])){
+			dd_debug_dump_pt(pt_page[i], level+1);
+		}
+	}
+}
+
+/*
+ * addr: the virtual addr of the target content
+ * root_pt: the page table
+ * lines: how much lines (8B each) to dump
+ * */
+void dd_debug_dump_page(unsigned long addr, unsigned long *root_pt, int lines)
+{
+	/* Get the page first */
+	unsigned long vpn_2 = (addr & 0x7ffffffffful) >> 30;
+	unsigned long vpn_1 = (addr & 0x3ffffffful) >> 21;
+	unsigned long vpn_0 = (addr & 0x1ffffful) >> 12;
+
+	//here, we assume there is no huge page for enclaves now!
+	unsigned long pte = root_pt[vpn_2];
+	unsigned long * page;
+	unsigned long offset;
+	int i;
+
+	sbi_printf("[Penglai Monitor@%s] Dump contents from 0x%x using PT:0x%x, lines:%d\n",
+			__func__, addr, (unsigned long)root_pt, lines);
+
+	if (!valid_pte(pte) || is_leaf_pt_page(pte)){
+		sbi_printf("[Penglai monitor@%s] error! pte1(0x%x) is huge!\n", __func__,
+				pte);
+		return;
+	}
+
+	root_pt = (unsigned long*) (((unsigned long)pte >> 10ul) << 12ul);
+	pte = root_pt[vpn_1];
+	if (!valid_pte(pte) || is_leaf_pt_page(pte)){
+		sbi_printf("[Penglai monitor@%s] error! pte2(0x%x) is huge!\n", __func__,
+				pte);
+		return;
+	}
+
+	root_pt = (unsigned long*) (((unsigned long)pte >> 10ul) << 12ul);
+	pte = root_pt[vpn_0];
+	if (!valid_pte(pte)){
+		sbi_printf("[Penglai monitor@%s] error! pte3(0x%x) is not valid!\n", __func__,
+				pte);
+		return;
+	}
+
+	page = (unsigned long*) (((unsigned long)pte >> 10ul) << 12ul);
+	offset = addr & 0xfff;
+
+	/* Now read the content from the page */
+	for (i=0; i<lines; i++){
+		sbi_printf("\t0x%lx\n", page[offset/8 + i]);
+	}
+
+}
+
 int sbi_ecall_handler(struct sbi_trap_regs *regs)
 {
 	int ret = 0;
@@ -109,11 +210,12 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 	args[4] = regs->a4;
 	args[5] = regs->a5;
 
-	if (extension_id == SBI_EXT_BASE){
+	if (extension_id == SBI_EXT_BASE && func_id > 80){
 		/* FIXME: hacking, when extension id is base, put regs into last args
 		 * currently this reg will not be used by any base functions
 		 * */
 		args[5] = (unsigned long) regs;
+		regs->mepc += 4;
 	}
 
 	ext = sbi_ecall_find_extension(extension_id);
@@ -130,6 +232,24 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 	if (ret == SBI_ETRAP) {
 		trap.epc = regs->mepc;
 		sbi_trap_redirect(regs, &trap);
+	//} else if (extension_id == SBI_EXT_BASE && func_id > 80){
+	} else if (extension_id == SBI_EXT_BASE && func_id > 80){
+		/* Do nothing as the regs mepc and a0 is set by the SM */
+		regs->a0 = ret;
+		if (!is_0_1_spec)
+			regs->a1 = out_val;
+		sbi_printf("[Penglai Monitor@%s] mepc:0x%x, a0:0x%x, mstatus:0x%x\n",
+				__func__, regs->mepc, regs->a0, regs->mstatus);
+		/* Dump PT here */
+		if (func_id == 97) {//run
+			sbi_printf("[Penglai Monitor@%s] Dump pt @ 0x%x\n",
+					__func__, csr_read(CSR_SATP));
+				dd_debug_dump_pt(((csr_read(CSR_SATP) & 0xffffffffffful)<<12ul), 0);
+		}
+
+		dd_debug_dump_page(regs->mepc, (unsigned long*)((csr_read(CSR_SATP) & 0xffffffffffful)<<12ul), 8);
+		dd_debug_dump_page(regs->sp, (unsigned long*)((csr_read(CSR_SATP) & 0xffffffffffful)<<12ul), 2);
+
 	} else {
 		/*
 		 * This function should return non-zero value only in case of

@@ -193,6 +193,7 @@ int sbi_trap_redirect(struct sbi_trap_regs *regs,
 	return 0;
 }
 
+extern int check_in_enclave_world();
 /**
  * Handle trap/interrupt
  *
@@ -257,6 +258,15 @@ void sbi_trap_handler(struct sbi_trap_regs *regs)
 		msg = "ecall handler failed";
 		break;
 	default:
+  		if(check_in_enclave_world() >= 0) {
+			sbi_printf("[Monitor@%s] trap from S/U modes and redirect\n"
+				"epc:0x%x, cause:0x%x, tval:0x%0x, tinst:0x%x\n",
+				__func__, regs->mepc, mcause, mtval, mtinst);
+			/* In-enclave mode, so we let the montor to handle user-ecalls */
+			rc  = sbi_ecall_handler(regs);
+			msg = "ecall handler failed";
+			break;
+		}
 		/* If the trap came from S or U mode, redirect it there */
 		trap.epc = regs->mepc;
 		trap.cause = mcause;

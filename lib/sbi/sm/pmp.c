@@ -5,6 +5,7 @@
 //set pmp and sync all harts
 void set_pmp_and_sync(int pmp_idx_arg, struct pmp_config_t pmp_config_arg)
 {
+#if 1//by Dd, disable PMP Op
   struct pmp_config_t* pmp_config = NULL;
   int* pmp_idx = NULL;
 
@@ -22,6 +23,7 @@ void set_pmp_and_sync(int pmp_idx_arg, struct pmp_config_t pmp_config_arg)
   send_and_sync_ipi_mail(0xFFFFFFFF);
 
   spinlock_unlock(&ipi_mail_lock);
+#endif
 
   return;
 }

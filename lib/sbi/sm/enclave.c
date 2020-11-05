@@ -297,9 +297,13 @@ int swap_from_host_to_enclave(uintptr_t* host_regs, struct enclave_t* enclave)
 
   //different platforms have differnt ptbr switch methods
   switch_to_enclave_ptbr(&(enclave->thread_context), enclave->thread_context.encl_ptbr);
+  printm("[Penglai@%s] switch ptbr:0x%x\n", __func__, enclave->thread_context.encl_ptbr);
 
+#if 0
+  //Note(DD): we do not need to save stvec?
   //save host trap vector
   swap_prev_stvec(&(enclave->thread_context), read_csr(stvec));
+#endif
 
   //TODO: save host cache binding
   //swap_prev_cache_binding(&enclave -> threads[0], read_csr(0x356));
@@ -316,12 +320,18 @@ int swap_from_host_to_enclave(uintptr_t* host_regs, struct enclave_t* enclave)
   swap_prev_medeleg(&(enclave->thread_context), read_csr(medeleg));
 
   //swap the mepc to transfer control to the enclave
+  //swap_prev_mepc(&(enclave->thread_context), read_csr(mepc));
+  //Note(DD): we add 4 so that we directly switch back to the host thread
+#if 0
   swap_prev_mepc(&(enclave->thread_context), read_csr(mepc));
+#endif
 
+#if 0 //Note(DD): put the code in outer function
   //set mstatus to transfer control to u mode
   uintptr_t mstatus = read_csr(mstatus);
   mstatus = INSERT_FIELD(mstatus, MSTATUS_MPP, PRV_U);
   write_csr(mstatus, mstatus);
+#endif
 
   //mark that cpu is in enclave world now
   enter_enclave_world(enclave->eid);
@@ -343,7 +353,10 @@ int swap_from_enclave_to_host(uintptr_t* regs, struct enclave_t* enclave)
   switch_to_host_ptbr(&(enclave->thread_context), enclave->host_ptbr);
 
   //restore host stvec
+#if 0
+  /* FIXME(DD): Not change stvec now */
   swap_prev_stvec(&(enclave->thread_context), read_csr(stvec));
+#endif
 
   //TODO: restore host cache binding
   //swap_prev_cache_binding(&(enclave->thread_context), );
@@ -356,12 +369,20 @@ int swap_from_enclave_to_host(uintptr_t* regs, struct enclave_t* enclave)
   swap_prev_medeleg(&(enclave->thread_context), read_csr(medeleg));
 
   //transfer control back to kernel
-  swap_prev_mepc(&(enclave->thread_context), read_csr(mepc));
+  //swap_prev_mepc(&(enclave->thread_context), read_csr(mepc));
+  regs[32] = (uintptr_t)(enclave->thread_context.prev_mepc); //In OpenSBI, we use regs to change mepc
+  swap_prev_mepc(&(enclave->thread_context), regs[32]);
 
   //restore mstatus
+#if 0
   uintptr_t mstatus = read_csr(mstatus);
   mstatus = INSERT_FIELD(mstatus, MSTATUS_MPP, PRV_S);
   write_csr(mstatus, mstatus);
+#else
+  uintptr_t mstatus = regs[33]; //In OpenSBI, we use regs to change mstatus
+  mstatus = INSERT_FIELD(mstatus, MSTATUS_MPP, PRV_S);
+  regs[33] = mstatus;
+#endif
 
   //mark that cpu is out of enclave world now
   exit_enclave_world();
@@ -403,8 +424,16 @@ uintptr_t create_enclave(struct enclave_sbi_param_t create_args)
   enclave->state = FRESH;
 
   spinlock_unlock(&enclave_metadata_lock);
+  printm("[Penglai@%s] paddr:0x%x, size:0x%x, entry:0x%x\n"
+		  "untrusted ptr:0x%x host_ptbr:0x%x, pt:0x%x\n"
+		  "thread_context.encl_ptbr:0x%lx\n cur_satp:0x%lx\n",
+		  __func__, enclave->paddr, enclave->size, enclave->entry_point,
+		  enclave->untrusted_ptr, enclave->host_ptbr, enclave->root_page_table,
+		  enclave->thread_context.encl_ptbr, read_csr(satp));
 
   copy_word_to_host((unsigned int*)create_args.eid_ptr, enclave->eid);
+  printm("[Penglai@%s] return eid:%d\n",
+		  __func__, enclave->eid);
 
   return 0;
 }
@@ -413,8 +442,10 @@ uintptr_t run_enclave(uintptr_t* regs, unsigned int eid)
 {
   struct enclave_t* enclave;
   uintptr_t retval = 0;
+  uintptr_t mstatus;
 
   enclave = get_enclave(eid);
+  printm("M mode: run_enclave: flag: 1\r\n");
   if(!enclave)
   {
     printm("M mode: run_enclave: wrong enclave id\r\n");
@@ -423,18 +454,22 @@ uintptr_t run_enclave(uintptr_t* regs, unsigned int eid)
 
   spinlock_lock(&enclave_metadata_lock);
 
+  printm("M mode: run_enclave: flag: 2\r\n");
   if(enclave->state != FRESH)
   {
     printm("M mode: run_enclave: enclave is not initialized or already used\r\n");
     retval = -1UL;
     goto run_enclave_out;
   }
+  printm("M mode: run_enclave: flag: 3\r\n");
   if(enclave->host_ptbr != read_csr(satp))
   {
     printm("M mode: run_enclave: enclave doesn't belong to current host process\r\n");
     retval = -1UL;
     goto run_enclave_out;
   }
+
+  printm("M mode: run_enclave: flag: 4\r\n");
   if(swap_from_host_to_enclave(regs, enclave) < 0)
   {
     printm("M mode: run_enclave: enclave can not be run\r\n");
@@ -442,8 +477,20 @@ uintptr_t run_enclave(uintptr_t* regs, unsigned int eid)
     goto run_enclave_out;
   }
 
+  printm("[Penglai Monitor@%s] save current mepc:0x%x\n",
+		  __func__, regs[32]);
+  swap_prev_mepc(&(enclave->thread_context), regs[32]);
+
   //set return address to enclave
-  write_csr(mepc, (uintptr_t)(enclave->entry_point));
+  //write_csr(mepc, (uintptr_t)(enclave->entry_point));
+  regs[32] = (uintptr_t)(enclave->entry_point); //In OpenSBI, we use regs to change mepc
+  printm("M mode: run_enclave: flag: 5, mepc to:0x%x\r\n", regs[32]);
+
+  //set mstatus to transfer control to u mode
+  mstatus = regs[33]; //In OpenSBI, we use regs to change mstatus
+  mstatus = INSERT_FIELD(mstatus, MSTATUS_MPP, PRV_U);
+  regs[33] = mstatus;
+  //write_csr(mstatus, mstatus);
 
   //TODO: enable timer interrupt
   set_csr(mie, MIP_MTIP);
@@ -457,6 +504,7 @@ uintptr_t run_enclave(uintptr_t* regs, unsigned int eid)
   regs[13] = (uintptr_t)enclave->untrusted_size;
 
   enclave->state = RUNNING;
+  printm("M mode: run_enclave: flag: 6, stack:0x%lx\r\n", regs[2]);
 
 run_enclave_out:
   spinlock_unlock(&enclave_metadata_lock);

@@ -25,9 +25,11 @@ uintptr_t sm_mm_init(uintptr_t paddr, unsigned long size)
 uintptr_t sm_mm_extend(uintptr_t paddr, unsigned long size)
 {
   uintptr_t retval = 0;
+  printm("[Penglai Monitor] %s invoked\r\n",__func__);
 
   retval = mm_init(paddr, size);
 
+  printm("[Penglai Monitor] %s return:%d\r\n",__func__, retval);
   return retval;
 }
 
@@ -42,6 +44,8 @@ uintptr_t sm_alloc_enclave_mem(uintptr_t mm_alloc_arg)
 {
   struct mm_alloc_arg_t mm_alloc_arg_local;
   uintptr_t retval = 0;
+
+  printm("[Penglai Monitor] %s invoked\r\n",__func__);
 
   retval = copy_from_host(&mm_alloc_arg_local,
       (struct mm_alloc_arg_t*)mm_alloc_arg,
@@ -75,6 +79,8 @@ uintptr_t sm_alloc_enclave_mem(uintptr_t mm_alloc_arg)
       &mm_alloc_arg_local,
       sizeof(struct mm_alloc_arg_t));
 
+  printm("[Penglai Monitor] %s return:%d\r\n",__func__, retval);
+
   return ENCLAVE_SUCCESS;
 }
 
@@ -82,6 +88,8 @@ uintptr_t sm_create_enclave(uintptr_t enclave_sbi_param)
 {
   struct enclave_sbi_param_t enclave_sbi_param_local;
   uintptr_t retval = 0;
+
+  printm("[Penglai Monitor] %s invoked\r\n",__func__);
 
   retval = copy_from_host(&enclave_sbi_param_local,
       (struct enclave_sbi_param_t*)enclave_sbi_param,
@@ -98,14 +106,19 @@ uintptr_t sm_create_enclave(uintptr_t enclave_sbi_param)
   //TODO: not finished yet
   retval = create_enclave(enclave_sbi_param_local);
 
+
+  printm("[Penglai Monitor] %s created return value:%d \r\n",__func__, retval);
   return retval;
 }
 
 uintptr_t sm_run_enclave(uintptr_t* regs, unsigned long eid)
 {
   uintptr_t retval;
+  printm("[Penglai Monitor] %s invoked, eid:%d\r\n",__func__, eid);
 
   retval = run_enclave(regs, (unsigned int)eid);
+
+  printm("[Penglai Monitor] %s return: %d\r\n",__func__, retval);
 
   return retval;
 }
@@ -147,8 +160,11 @@ uintptr_t sm_resume_enclave(uintptr_t* regs, unsigned long eid)
 uintptr_t sm_exit_enclave(uintptr_t* regs, unsigned long retval)
 {
   uintptr_t ret;
+  printm("[Penglai Monitor] %s invoked\r\n",__func__);
 
   ret = exit_enclave(regs, retval);
+
+  printm("[Penglai Monitor] %s return: %d\r\n",__func__, ret);
 
   return ret;
 }
