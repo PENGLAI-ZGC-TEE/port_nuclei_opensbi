@@ -138,8 +138,8 @@ static int ux600_final_init(bool cold_boot)
 	ux600_modify_dt(fdt);
 
     // Enable U-Mode to access all regions by setting spmpcfg0 and spmpaddr0
-    csr_write(0x1a0, 0x1f);
-    csr_write(0x1b0, 0xffffffff);
+    //csr_write(0x1a0, 0x1f);
+    //csr_write(0x1b0, 0xffffffff);
 
 	return 0;
 }
