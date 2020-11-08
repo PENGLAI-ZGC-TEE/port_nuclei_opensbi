@@ -22,4 +22,4 @@ sm_asm_srcs = \
 sm_test_srcs =
 
 
-sm_install_prog_srcs = 
+sm_install_prog_srcs =

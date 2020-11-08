@@ -21,17 +21,17 @@ struct link_mem_t
   unsigned long slab_size;
   unsigned long slab_num;
   char* addr;
-  struct link_mem_t* next_link_mem;    
+  struct link_mem_t* next_link_mem;
 };
 
-typedef enum 
+typedef enum
 {
   DESTROYED = -1,
   INVALID = 0,
   FRESH = 1,
   RUNNABLE,
   RUNNING,
-  STOPPED, 
+  STOPPED,
 } enclave_state_t;
 
 /*

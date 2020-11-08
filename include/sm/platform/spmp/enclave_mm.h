@@ -10,7 +10,7 @@
 #define REGION_TO_PMP(region_idx) (region_idx + 1)
 #define PMP_TO_REGION(pmp_idx) (pmp_idx - 1)
 
-/* 
+/*
  * Layout of free memory chunk
  * | struct mm_list_head_t | struct mm_list_t | 00...0 |
  * | struct mm_list_head_t | struct mm_list_t | 00...0 |

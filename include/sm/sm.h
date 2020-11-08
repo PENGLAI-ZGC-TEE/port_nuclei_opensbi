@@ -3,7 +3,7 @@
 
 //#ifndef TARGET_PLATFORM_HEADER
 //#error "SM requires to specify a certain platform"
-//#endif 
+//#endif
 
 //#include TARGET_PLATFORM_HEADER
 #include <sm/print.h>

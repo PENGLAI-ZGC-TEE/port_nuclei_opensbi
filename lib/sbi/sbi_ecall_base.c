@@ -73,26 +73,26 @@ static int sbi_ecall_base_handler(unsigned long extid, unsigned long funcid,
 	case SBI_EXT_BASE_PROBE_EXT:
 		ret = sbi_ecall_base_probe(args[0], out_val);
 		break;
-    	case SBI_MM_INIT:
-    	  ret = sm_mm_init(args[0], args[1]);
-    	  break;
-    	case SBI_MEMORY_EXTEND:
-    	  ret = sm_mm_extend(args[0], args[1]);
-    	  break;
-    	case SBI_ALLOC_ENCLAVE_MM:
-    	  ret = sm_alloc_enclave_mem(args[0]);
-    	  break;
-    	case SBI_CREATE_ENCLAVE:
-    	  ret = sm_create_enclave(args[0]);
-    	  break;
-    	case SBI_RUN_ENCLAVE:
-	  //args5 is regs
-    	  ret = sm_run_enclave((uintptr_t *)args[5], args[0]);
-    	  break;
-    	case SBI_EXIT_ENCLAVE:
-	  //args5 is regs
-    	  ret = sm_exit_enclave((uintptr_t *)args[5], args[0]);
-    	  break;
+	case SBI_MM_INIT:
+	  ret = sm_mm_init(args[0], args[1]);
+	  break;
+	case SBI_MEMORY_EXTEND:
+	  ret = sm_mm_extend(args[0], args[1]);
+	  break;
+	case SBI_ALLOC_ENCLAVE_MM:
+	  ret = sm_alloc_enclave_mem(args[0]);
+	  break;
+	case SBI_CREATE_ENCLAVE:
+	  ret = sm_create_enclave(args[0]);
+	  break;
+	case SBI_RUN_ENCLAVE:
+      //args5 is regs
+	  ret = sm_run_enclave((uintptr_t *)args[5], args[0]);
+	  break;
+	case SBI_EXIT_ENCLAVE:
+      //args5 is regs
+	  ret = sm_exit_enclave((uintptr_t *)args[5], args[0]);
+	  break;
 	default:
 		ret = SBI_ENOTSUPP;
 	}
