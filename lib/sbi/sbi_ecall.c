@@ -243,10 +243,10 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 		regs->a0 = ret;
 		if (!is_0_1_spec)
 			regs->a1 = out_val;
-		sbi_printf("[Penglai Monitor@%s] mepc:0x%x, a0:0x%x, mstatus:0x%x\n",
-				__func__, regs->mepc, regs->a0, regs->mstatus);
 		/* Note(DD): for debug */
 		#if 0
+		sbi_printf("[Penglai Monitor@%s] mepc:0x%x, a0:0x%x, mstatus:0x%x\n",
+				__func__, regs->mepc, regs->a0, regs->mstatus);
 		/* Dump PT here */
 		if (func_id == 97) {//run
 			sbi_printf("[Penglai Monitor@%s] Dump pt @ 0x%x\n",
