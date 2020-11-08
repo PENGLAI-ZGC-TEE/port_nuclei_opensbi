@@ -86,11 +86,11 @@ static int sbi_ecall_base_handler(unsigned long extid, unsigned long funcid,
 	  ret = sm_create_enclave(args[0]);
 	  break;
 	case SBI_RUN_ENCLAVE:
-      //args5 is regs
+	  //args5 is regs
 	  ret = sm_run_enclave((uintptr_t *)args[5], args[0]);
 	  break;
 	case SBI_EXIT_ENCLAVE:
-      //args5 is regs
+	  //args5 is regs
 	  ret = sm_exit_enclave((uintptr_t *)args[5], args[0]);
 	  break;
 	default:

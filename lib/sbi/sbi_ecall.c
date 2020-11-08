@@ -12,9 +12,12 @@
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_trap.h>
 
+/* Note(DD): used for debug penglai enclave */
+#if 0
 #include <sbi/sbi_console.h>
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_encoding.h>
+#endif
 u16 sbi_ecall_version_major(void)
 {
 	return SBI_ECALL_VERSION_MAJOR;
@@ -94,6 +97,8 @@ void sbi_ecall_unregister_extension(struct sbi_ecall_extension *ext)
 		sbi_list_del_init(&ext->head);
 }
 
+/* Note(DD): used to debug penglai enclave */
+#if 0
 static inline int valid_pte(unsigned long pte){
 	return (pte & 0x1);
 }
@@ -191,6 +196,7 @@ void dd_debug_dump_page(unsigned long addr, unsigned long *root_pt, int lines)
 	}
 
 }
+#endif
 
 int sbi_ecall_handler(struct sbi_trap_regs *regs)
 {
@@ -211,7 +217,7 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 	args[5] = regs->a5;
 
 	if (extension_id == SBI_EXT_BASE && func_id > 80){
-		/* FIXME: hacking, when extension id is base, put regs into last args
+		/* FIXME(DD): hacking, when extension id is base, put regs into last args
 		 * currently this reg will not be used by any base functions
 		 * */
 		args[5] = (unsigned long) regs;
@@ -232,7 +238,6 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 	if (ret == SBI_ETRAP) {
 		trap.epc = regs->mepc;
 		sbi_trap_redirect(regs, &trap);
-	//} else if (extension_id == SBI_EXT_BASE && func_id > 80){
 	} else if (extension_id == SBI_EXT_BASE && func_id > 80){
 		/* Do nothing as the regs mepc and a0 is set by the SM */
 		regs->a0 = ret;
@@ -240,6 +245,8 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 			regs->a1 = out_val;
 		sbi_printf("[Penglai Monitor@%s] mepc:0x%x, a0:0x%x, mstatus:0x%x\n",
 				__func__, regs->mepc, regs->a0, regs->mstatus);
+		/* Note(DD): for debug */
+		#if 0
 		/* Dump PT here */
 		if (func_id == 97) {//run
 			sbi_printf("[Penglai Monitor@%s] Dump pt @ 0x%x\n",
@@ -249,7 +256,7 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 
 		dd_debug_dump_page(regs->mepc, (unsigned long*)((csr_read(CSR_SATP) & 0xffffffffffful)<<12ul), 8);
 		dd_debug_dump_page(regs->sp, (unsigned long*)((csr_read(CSR_SATP) & 0xffffffffffful)<<12ul), 2);
-
+		#endif
 	} else {
 		/*
 		 * This function should return non-zero value only in case of

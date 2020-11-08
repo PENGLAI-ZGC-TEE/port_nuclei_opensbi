@@ -259,9 +259,12 @@ void sbi_trap_handler(struct sbi_trap_regs *regs)
 		break;
 	default:
 		if(check_in_enclave_world() >= 0) {
+			/* Note(DD): for debug penglai */
+#if 0
 			sbi_printf("[Monitor@%s] trap from S/U modes and redirect\n"
 				"epc:0x%x, cause:0x%x, tval:0x%0x, tinst:0x%x\n",
 				__func__, regs->mepc, mcause, mtval, mtinst);
+#endif
 			/* In-enclave mode, so we let the montor to handle user-ecalls */
 			rc  = sbi_ecall_handler(regs);
 			msg = "ecall handler failed";

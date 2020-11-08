@@ -52,8 +52,5 @@ libsbi-objs-y += sm/pmp.o
 libsbi-objs-y += sm/sm.o
 libsbi-objs-y += sm/thread.o
 
-#libsbi-objs-y += sm/platform/spmp/enclave_mm.o
-#libsbi-objs-y += sm/platform/spmp/ipi_handler.o
+# Note(DD): platform will include other C files in sPMP
 libsbi-objs-y += sm/platform/spmp/platform.o
-#libsbi-objs-y += sm/platform/spmp/platform_thread.o
-#libsbi-objs-y += sm/platform/spmp/spmp.o

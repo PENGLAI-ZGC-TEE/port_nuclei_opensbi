@@ -211,8 +211,8 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	if (!(scratch->options & SBI_SCRATCH_NO_BOOT_PRINTS))
 		sbi_boot_prints(scratch, hartid);
 
-	sbi_printf("[Penglai] Penglai enclave preparing\n");
 	sm_init();
+	sbi_printf("[Penglai] monitor inited\n");
 
 	wake_coldboot_harts(scratch, hartid);
 
