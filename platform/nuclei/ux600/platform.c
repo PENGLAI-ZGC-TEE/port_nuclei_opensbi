@@ -136,6 +136,8 @@ static int ux600_final_init(bool cold_boot)
 	fdt = sbi_scratch_thishart_arg1_ptr();
 	ux600_modify_dt(fdt);
 
+	sm_init(cold_boot);
+
 	return 0;
 }
 
@@ -156,8 +158,7 @@ static int ux600_irqchip_init(bool cold_boot)
 			return rc;
 	}
 
-	return plic_warm_irqchip_init(&plic, (hartid) ? (2 * hartid - 1) : 0,
-				      (hartid) ? (2 * hartid) : -1);
+	return plic_warm_irqchip_init(&plic, 2 * hartid, 2 * hartid + 1);
 }
 
 static int ux600_ipi_init(bool cold_boot)

@@ -11,6 +11,7 @@
 #include <sbi/riscv_encoding.h>
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_platform.h>
+#include <sbi/sbi_console.h>
 
 /* determine CPU extension, return non-zero support */
 int misa_extension_imp(char ext)
@@ -197,6 +198,8 @@ int pmp_set(unsigned int n, unsigned long prot, unsigned long addr,
 	if (n >= PMP_COUNT || log2len > __riscv_xlen || log2len < PMP_SHIFT)
 		return SBI_EINVAL;
 
+	sbi_printf("pmp_set %d, 0x%x, 0x%lx, %d\n", n, prot, addr, log2len);
+
 	/* calculate PMP register and offset */
 #if __riscv_xlen == 32
 	pmpcfg_csr   = CSR_PMPCFG0 + (n >> 2);
@@ -234,6 +237,8 @@ int pmp_set(unsigned int n, unsigned long prot, unsigned long addr,
 	/* write csrs */
 	csr_write_num(pmpaddr_csr, pmpaddr);
 	csr_write_num(pmpcfg_csr, pmpcfg);
+	sbi_printf("pmpaddr csr write %x: 0x%lx\n", pmpaddr_csr, pmpaddr);
+	sbi_printf("pmpcfg csr write %x: 0x%lx\n", pmpcfg_csr, pmpcfg);
 
 	return 0;
 }
