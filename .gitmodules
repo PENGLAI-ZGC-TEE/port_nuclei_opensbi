@@ -1,4 +1,4 @@
 [submodule "lib/utils/experimental/keystone"]
 	path = lib/utils/experimental/keystone
-	url = ../sm.git
+	url = ../keystone-sm.git
 	branch = master
