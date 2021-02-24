@@ -53,7 +53,7 @@
 #define NUCLEI_TIMER_VALUE()		readl((void *)NUCLEI_NUCLEI_TIMER_ADDR)
 
 /* clang-format on */
-static u32 nuclei_clk_freq = 8000000;
+static u32 nuclei_clk_freq = 16000000;
 
 static struct plic_data plic = {
 	.addr = NUCLEI_PLIC_ADDR,
