@@ -16,7 +16,7 @@ platform-ldflags-y =
 
 # Command for platform specific "make run"
 platform-runcmd = xl_spike \
-  $(build_dir)/platform/nuclei/general/firmware/fw_payload.elf
+  $(build_dir)/platform/nuclei/demosoc/firmware/fw_payload.elf
 
 # Blobs to build
 FW_TEXT_START ?= 0xA0000000
