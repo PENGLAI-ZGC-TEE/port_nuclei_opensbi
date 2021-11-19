@@ -9,3 +9,4 @@
 #
 
 platform-objs-y += platform.o
+platform-objs-y += demosoc.o
