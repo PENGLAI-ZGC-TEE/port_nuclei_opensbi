@@ -29,6 +29,9 @@
 #define DEFAULT_SIFIVE_UART_FREQ		0
 #define DEFAULT_SIFIVE_UART_BAUD		115200
 
+#define DEFAULT_NUCLEI_UART_FREQ		0
+#define DEFAULT_NUCLEI_UART_BAUD		115200
+
 #define DEFAULT_SHAKTI_UART_FREQ		50000000
 #define DEFAULT_SHAKTI_UART_BAUD		115200
 
@@ -380,6 +383,14 @@ int fdt_parse_sifive_uart_node(void *fdt, int nodeoffset,
 	return fdt_parse_uart_node_common(fdt, nodeoffset, uart,
 					DEFAULT_SIFIVE_UART_FREQ,
 					DEFAULT_SIFIVE_UART_BAUD);
+}
+
+int fdt_parse_nuclei_uart_node(void *fdt, int nodeoffset,
+			       struct platform_uart_data *uart)
+{
+	return fdt_parse_uart_node_common(fdt, nodeoffset, uart,
+					DEFAULT_NUCLEI_UART_FREQ,
+					DEFAULT_NUCLEI_UART_BAUD);
 }
 
 int fdt_parse_uart_node(void *fdt, int nodeoffset,
