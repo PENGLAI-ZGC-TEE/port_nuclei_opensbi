@@ -45,4 +45,16 @@ config PLATFORM_SIFIVE_FU740
 	depends on FDT_RESET && FDT_I2C
 	default n
 
+config PLATFORM_NUCLEI_EVALSOC
+	bool "Nuclei EVALSOC support"
+	default n
+
+config PLATFORM_NUCLEI_DEMOSOC
+	bool "Nuclei DEMOSOC support"
+	default n
+
+config PLATFORM_NUCLEI_CUSTOMSOC
+	bool "Nuclei CUSTOM SOC support"
+	default n
+
 endif
