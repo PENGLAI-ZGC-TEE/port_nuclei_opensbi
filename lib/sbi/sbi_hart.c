@@ -805,6 +805,22 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 		}
 	}
 
+	/* Check whether SMP present via mcfg_info and L2 enabled if yes, flush L2 cache */
+	val = csr_read(0xFC2);
+	if ((val & 0x10800) == 0x10800) { // IREGION and SMP Present
+		val = ((csr_read(0x7F7) >> 10) << 10); // read csr mirgb_info and get iregion base address
+		val = val + 0x40000; // get smp cluster cache base address
+		/* Flush L1 Cache */
+		__asm__ __volatile__("fence");
+		__asm__ __volatile__("fence.i");
+		/* Flush L2 Cache */
+		*(volatile unsigned int *)(val + 0x14) = 0x7; // flush and invalid l2 cache lines
+	} else {
+		/* Flush L1 Cache */
+		__asm__ __volatile__("fence");
+		__asm__ __volatile__("fence.i");
+	}
+
 	register unsigned long a0 asm("a0") = arg0;
 	register unsigned long a1 asm("a1") = arg1;
 	__asm__ __volatile__("mret" : : "r"(a0), "r"(a1));
