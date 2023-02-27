@@ -1,0 +1,4 @@
+*.c
+!demosoc.c
+!evalsoc.c
+!customsoc.c
