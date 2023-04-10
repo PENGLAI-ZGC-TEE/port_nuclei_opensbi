@@ -23,6 +23,114 @@ static struct plic_data plic[PLIC_MAX_NR];
 static struct plic_data *plic_hartid2data[SBI_HARTMASK_MAX_BITS];
 static int plic_hartid2context[SBI_HARTMASK_MAX_BITS][2];
 
+
+u32 irqchip_plic_claim(int mode)
+{
+	u32 hartid = current_hartid();
+	struct plic_data *plic = plic_hartid2data[hartid];
+
+	return plic_read_claim(plic, plic_hartid2context[hartid][!!mode]);
+}
+
+void irqchip_plic_complete(int mode, int id)
+{
+	u32 hartid = current_hartid();
+	struct plic_data *plic = plic_hartid2data[hartid];
+
+	plic_write_complete(plic, plic_hartid2context[current_hartid()][!!mode], id);
+}
+
+void irqchip_plic_set_pending(int id)
+{
+	u32 hartid = current_hartid();
+	struct plic_data *plic = plic_hartid2data[hartid];
+
+	plic_set_pending(plic, id);
+}
+/**
+ * @brief Set the interrupt enable mode object
+ * 
+ * @param int_id global device interrupt id
+ * @param mode interrupt enable mode ,0:Machine Mode, 1:Supervisor Mode,-1:disable
+ * @return int 0:success, -1:fail
+ */
+int irqchip_plic_set_en_mode(unsigned int int_id, unsigned int mode)
+{
+	int int_src_idx;
+	int ie_val;
+	u32 hartid = current_hartid();
+	struct plic_data *plic = plic_hartid2data[hartid];
+
+	if (!plic)
+		return SBI_EINVAL;
+	if (int_id > plic->num_src)
+		return SBI_EINVAL;
+
+	int_src_idx = int_id / 32;
+
+	if (mode == -1) {
+		/*disable M/S mode interrupt enable*/
+		ie_val = plic_get_ie(plic, plic_hartid2context[hartid][0], int_src_idx);
+		ie_val &= ~(1 << (int_id % 32));
+		plic_set_ie(plic, plic_hartid2context[hartid][0], int_src_idx, ie_val);
+
+		ie_val = plic_get_ie(plic, plic_hartid2context[hartid][1], int_src_idx);
+		ie_val &= ~(1 << (int_id % 32));
+		plic_set_ie(plic, plic_hartid2context[hartid][1], int_src_idx, ie_val);
+	} else {
+		/*set M/S mode, M:1,S;0, or M:0,S:1*/
+		ie_val = plic_get_ie(plic, plic_hartid2context[hartid][!!mode], int_src_idx);
+		ie_val |= 1 << (int_id % 32);
+		plic_set_ie(plic, plic_hartid2context[hartid][!!mode], int_src_idx, ie_val);
+
+		ie_val = plic_get_ie(plic, plic_hartid2context[hartid][!mode], int_src_idx);
+		ie_val &= ~(1 << (int_id % 32));
+		plic_set_ie(plic, plic_hartid2context[hartid][!mode], int_src_idx, ie_val);
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Get the interrupt enable mode object
+ * 
+ * @param int_id :interrupt num
+ * @return int :0:Machine Mode enable, 1:Supervisor Mode enable, -1: disabled
+ */
+int irqchip_plic_get_en_mode(unsigned int int_id)
+{
+	int int_src_idx;
+	int ie_val;
+	u32 hartid = current_hartid();
+	struct plic_data *plic = plic_hartid2data[hartid];
+
+	if (!plic)
+		return SBI_EINVAL;
+	if (int_id > plic->num_src)
+		return SBI_EINVAL;
+
+	int_src_idx = int_id / 32;
+
+	/*get M mode interrupt enable*/
+	ie_val = plic_get_ie(plic, plic_hartid2context[hartid][0], int_src_idx);
+	if ((ie_val >> (int_id % 32)) & 0x1)
+		return 0;
+	ie_val = plic_get_ie(plic, plic_hartid2context[hartid][1], int_src_idx);
+	if ((ie_val >> (int_id % 32)) & 0x1)
+		return 1;
+	return -1;
+}
+
+int irqchip_plic_get_interrupt_num(void)
+{
+	u32 hartid = current_hartid();
+	struct plic_data *plic = plic_hartid2data[hartid];
+
+	if (!plic)
+		return SBI_EINVAL;
+	return plic->num_src;
+}
+
 static int irqchip_plic_warm_init(void)
 {
 	u32 hartid = current_hartid();

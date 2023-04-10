@@ -21,6 +21,41 @@
 #define PLIC_CONTEXT_BASE 0x200000
 #define PLIC_CONTEXT_STRIDE 0x1000
 
+u32 plic_read_claim(struct plic_data *plic, u32 cntxid)
+{
+	volatile void *plic_claim;
+
+	if (!plic)
+		return 0;
+
+	plic_claim = (void *)plic->addr +
+		      PLIC_CONTEXT_BASE + PLIC_CONTEXT_STRIDE * cntxid + 4;
+
+	return readl(plic_claim);
+}
+
+void plic_write_complete(struct plic_data *plic, u32 cntxid, u32 source)
+{
+	volatile void *plic_complete;
+
+	if (!plic)
+		return;
+
+	plic_complete = (void *)plic->addr +
+		      PLIC_CONTEXT_BASE + PLIC_CONTEXT_STRIDE * cntxid + 4;
+	writel(source, plic_complete);
+}
+
+void plic_set_pending(struct plic_data *plic, u32 source)
+{
+	volatile void *plic_pending = (void *)plic->addr +
+			PLIC_PENDING_BASE + 4 * (source >> 5);
+	u32 val;
+	val = readl(plic_pending);
+	val |= 1 << (source & 0x1F);
+	writel(val, plic_pending);
+}
+
 static void plic_set_priority(struct plic_data *plic, u32 source, u32 val)
 {
 	volatile void *plic_priority = (void *)plic->addr +
@@ -50,6 +85,18 @@ void plic_set_ie(struct plic_data *plic, u32 cntxid, u32 word_index, u32 val)
 	plic_ie = (void *)plic->addr +
 		   PLIC_ENABLE_BASE + PLIC_ENABLE_STRIDE * cntxid;
 	writel(val, plic_ie + word_index * 4);
+}
+
+u32 plic_get_ie(struct plic_data *plic, u32 cntxid, u32 word_index)
+{
+	volatile void *plic_ie;
+
+	if (!plic)
+		return 0;
+
+	plic_ie = (void *)plic->addr +
+		   PLIC_ENABLE_BASE + PLIC_ENABLE_STRIDE * cntxid;
+	return readl(plic_ie + word_index * 4);
 }
 
 int plic_warm_irqchip_init(struct plic_data *plic,

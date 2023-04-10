@@ -26,4 +26,11 @@ void plic_set_thresh(struct plic_data *plic, u32 cntxid, u32 val);
 
 void plic_set_ie(struct plic_data *plic, u32 cntxid, u32 word_index, u32 val);
 
+u32 plic_get_ie(struct plic_data *plic, u32 cntxid, u32 word_index);
+
+u32 plic_read_claim(struct plic_data *plic, u32 cntxid);
+
+void plic_write_complete(struct plic_data *plic, u32 cntxid, u32 source);
+
+void plic_set_pending(struct plic_data *plic, u32 source);
 #endif
