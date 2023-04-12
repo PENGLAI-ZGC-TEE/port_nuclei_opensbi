@@ -28,6 +28,8 @@ static int is_caller_non_secure(void)
 extern u32 optee_saved_sie[PLATFORM_CORE_COUNT];
 extern u32 optee_saved_mstatus_sie[PLATFORM_CORE_COUNT];
 
+static u32 optee_fast_call_saved_mie[PLATFORM_CORE_COUNT] = {0};
+
 static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 				    const struct sbi_trap_regs *regs,
 				    unsigned long *out_val,
@@ -41,6 +43,17 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 	 * Determine which security state this SMC originated from
 	 */
 	if (is_caller_non_secure()) {
+		/*
+		 * when linux send fastcall, M mode interrupt should be saved and disabled,
+		 * when tee finish the fastcall, M mode interrupt should be restore.
+		 */
+		if (OPTEE_SMC_IS_FAST_CALL(funcid)) {
+			optee_fast_call_saved_mie[linear_id] =
+				csr_read(CSR_MIE) & (1 << 3 | 1 << 7 | 1 << 11);
+			csr_clear(CSR_MIE,  MIP_MTIP);
+			csr_clear(CSR_MIE,  MIP_MEIP);
+			csr_clear(CSR_MIE,  MIP_MSIP);
+		}
 		/*deal with interrupt forward from non secure*/
 		if (is_forwarding_interrupt() && (funcid == OPTEE_SMC_CALL_RETURN_FROM_RPC)) {
 			cm_gpregs_context_save(NON_SECURE, regs);
@@ -156,6 +169,10 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 		 * into the non-secure context, save the secure state
 		 * and return to the non-secure state.
 		 */
+		if (optee_fast_call_saved_mie[linear_id]) {
+			csr_write(CSR_MIE, csr_read(CSR_MIE) | optee_fast_call_saved_mie[linear_id]);
+			optee_fast_call_saved_mie[linear_id] = 0;
+		}
 		cm_gpregs_context_save(SECURE, regs);
 		cm_sysregs_context_save(SECURE);
 		cm_vfp_context_save(SECURE);
