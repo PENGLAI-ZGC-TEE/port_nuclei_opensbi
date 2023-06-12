@@ -27,9 +27,10 @@ void switch_vector_normal(void)
 }
 
 extern int irqchip_plic_get_interrupt_num(void);
-extern int irqchip_plic_get_en_mode(unsigned int int_id);
-extern int irqchip_plic_set_en_mode(unsigned int int_id, unsigned int mode);
-
+extern int irqchip_plic_get_en_mode(unsigned int int_id, int secure);
+extern int irqchip_plic_set_en_mode(unsigned int *pintid, unsigned int mode, int secure);
+extern unsigned int* plic_get_sec_interrupt_tab(void);
+extern int plic_is_sec_interrupt(int intr);
 /**
  * @brief switch interrupt enable mode
  * @param next_state ,SECURE or NON_SECURE
@@ -38,28 +39,29 @@ void switch_plic_int_enable_mode(int next_state)
 {
 	int en_mode, plic_int_num;
 	int i, j;
-	char* secint;
+	unsigned int* secint;
 
 	plic_int_num = irqchip_plic_get_interrupt_num();
 	secint = plic_get_sec_interrupt_tab();
 	for(i = 1; i <= plic_int_num; i++) {
-		en_mode = irqchip_plic_get_en_mode(i);
-		if (en_mode == -1)
+		en_mode = irqchip_plic_get_en_mode(i, NON_SECURE);
+		if (en_mode == -1 || plic_is_sec_interrupt(i))
+		/* skip disabled interrupt and secure interrupt */
 			continue;
 		else {
 			/*
 			 * set all non-secure interrupt enable to S mode when next_state is NON_SECURE
 			 * set all non-secure interrupt enable to M mode when next_state is SECURE
 			 */
-			irqchip_plic_set_en_mode(i, next_state == NON_SECURE);
+			irqchip_plic_set_en_mode((u32*)&i, next_state == NON_SECURE, NON_SECURE);
 		}
 	}
 	/*
 	 * set all secure interrupt enable to M mode when next_state is NON_SECURE
 	 * set all secure interrupt enable to S mode when next_state is SECURE
 	 */
-	for(j = 1; j <= secint[0]; j++)
-		irqchip_plic_set_en_mode(secint[j], !(next_state == NON_SECURE));
+	for(j = 0; j < (secint[0] & 0xFFFF); j++)
+		irqchip_plic_set_en_mode(&secint[j+1], !(next_state == NON_SECURE), SECURE);
 }
 
 
@@ -94,6 +96,10 @@ void cm_setup_context(cpu_context_t *ctx, const entry_point_info_t *ep)
 	ctx->gp_regs.a5 = ep->arg5;
 	ctx->gp_regs.a6 = ep->arg6;
 	ctx->gp_regs.a7 = ep->arg7;
+	if (ep->sec_attr == SECURE)
+		ctx->s_csrs.sie = 0;
+	else
+		ctx->s_csrs.sie = csr_read(CSR_SIE);
 }
 
 /* from sbi trap regs to cpu context */

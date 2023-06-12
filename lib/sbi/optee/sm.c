@@ -19,9 +19,6 @@ static int sm_region_id = 0, os_region_id = 0;
 int tee_region_id = 0, shm_region_id = 0;
 int plicm_region_id = 0,timer_region_id = 0;
 
-void plic_init_sec_interrupt_tab(void);
-char * plic_get_sec_interrupt_tab(void);
-
 int osm_pmp_set(uint8_t perm)
 {
 	/* in case of OSM, PMP cfg is exactly the opposite.*/
@@ -167,10 +164,6 @@ void sm_init(bool cold_boot)
 				"[SM] intolerable error - failed to initialize PLIC memory");
 			sbi_hart_hang();
 		}
-		/*if(platform_init_global_once() != ENCLAVE_SUCCESS) {
-      sbi_printf("[SM] platform global init fatal error");
-      sbi_hart_hang();
-    }*/
 
 		sm_init_done = 1;
 		mb();
@@ -189,43 +182,74 @@ void sm_init(bool cold_boot)
 
 	if (cold_boot) {
 		opteed_init();
-		plic_init_sec_interrupt_tab();
 	}
-
 	sbi_printf("[SM] security monitor has been initialized!\n");
 
 	return;
 }
 
 /*
- * plic_secure_int fill with secure interrupt number
+ * plic_secure_int fill with  hartid and secure interrupt number,
+ * secure int format as (hartid | intr), hartid and intr are 16bit width.
  * plic_secure_int[0] indicate total secure interrupt counter
  */
 #define MAX_SECURE_INT	16
 
-static char plic_secure_int[MAX_SECURE_INT + 1];
+/* high16:cpu id,low16:interrupt number */
+static unsigned int plic_secure_int[MAX_SECURE_INT + 1];
 
-void plic_init_sec_interrupt_tab(void)
-{
-	/*have security interrupt currently*/
-	plic_secure_int[0] = 2;
-
-	/*support secure interrupt : timer int*/
-	/*use 38,39 as secure interrupt for debug only*/
-	plic_secure_int[1] = 38;
-	plic_secure_int[2] = 39;
-
-	/**debug only*/
-	/*set 38,39 priority,threshold*/
-	*(unsigned int *)0x1c000098 = 1;
-	*(unsigned int *)0x1c00009c = 1;
-	*(unsigned int *)0x1c200000 = 0;
-
-	csr_set(CSR_MIE, MIP_MEIP);
-}
-
-char * plic_get_sec_interrupt_tab(void)
+unsigned int *plic_get_sec_interrupt_tab(void)
 {
 	return plic_secure_int;
 }
 
+int plic_is_sec_interrupt(int intr)
+{
+	int i;
+
+	for(i = 0; i < (plic_secure_int[0] & 0xFFFF); i++)
+		if (intr == (plic_secure_int[i+1] & 0xFFFF))
+			return true;
+	return false;
+}
+
+int plic_register_sec_interrupt(unsigned int intr)
+{
+	unsigned long offset;
+	int cnt;
+	int hartid;
+	int i;
+
+	hartid = current_hartid();
+	cnt = plic_secure_int[0] & 0xFFFF;
+	if (cnt > MAX_SECURE_INT)
+		return false;
+	/* check if intr have been registered */
+	for (i = 0 ; i < cnt ; i++)
+		if ((plic_secure_int[i + 1] & 0xFFFF) == intr)
+			return true;
+	/* register a new secure interrupt */
+	plic_secure_int[cnt + 1] = (hartid << 16) | intr;
+	/* update secure total number */
+	plic_secure_int[0] = (0xFFFF << 16) | (cnt + 1);
+
+	/* set priotity */
+	offset = 4 * intr;
+	*(volatile unsigned int *)(OPTEE_PLIC_BASE + offset) = 1;
+
+	/* set Priority threshold for current M/S context */
+	offset = 0x200000 + 0x2000 * hartid;
+	*(volatile unsigned int *)(OPTEE_PLIC_BASE + offset) = 0;
+	offset = 0x201000 + 0x2000 * hartid;
+	*(volatile unsigned int *)(OPTEE_PLIC_BASE + offset) = 0;
+
+	/*
+	 * set enable mode to S mode, because this function
+	 * only should be called by OPTEE
+	 */
+	offset = 0x2080 + 0x100 * hartid + 4 * (intr >> 5);
+	*(volatile unsigned int *)(OPTEE_PLIC_BASE + offset) |=
+		(1 << (intr - (intr >> 5) * 32));
+
+	return true;
+}

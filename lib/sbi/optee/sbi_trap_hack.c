@@ -95,11 +95,7 @@ static void __noreturn sbi_trap_error(const char *msg, int rc,
 
 extern void clint_timer_event_stop(void);
 extern u32 irqchip_plic_claim(int mode);
-extern void irqchip_plic_complete(int mode, int id);
 extern void irqchip_plic_set_pending(int id);
-extern int irqchip_plic_get_interrupt_num(void);
-extern int irqchip_plic_get_en_mode(unsigned int int_id);
-extern int irqchip_plic_set_en_mode(unsigned int int_id, unsigned int mode);
 
 void forward_int_to_ree(struct sbi_trap_regs *regs, ulong mcause)
 {
@@ -177,9 +173,9 @@ void forward_int_to_ree(struct sbi_trap_regs *regs, ulong mcause)
 	}
 }
 
-u32 optee_saved_sie[8];
-u32 optee_saved_mstatus_sie[8];
-
+u32 optee_saved_sie[PLATFORM_CORE_COUNT];
+u32 optee_saved_mstatus_sie[PLATFORM_CORE_COUNT];
+extern u32 optee_saved_csr_mie[PLATFORM_CORE_COUNT];
 /**
  * @brief
  * when CPU running on REE, TEE interrupt occur,
@@ -191,7 +187,9 @@ void forward_int_to_tee(struct sbi_trap_regs *regs)
 {
 	u32 source;
 	cpu_context_t *cpu_context;
+	u32 linear_id = current_hartid();
 
+	optee_saved_csr_mie[linear_id] = csr_read(CSR_MIE);
 	/**
 	 * only claim M mode plic interrupt to clear interrupt pending,
 	 * not to complete,so that next interrupt request is blocked.
@@ -211,6 +209,7 @@ void forward_int_to_tee(struct sbi_trap_regs *regs)
 	 */
 	csr_clear(CSR_MIE,  MIP_MTIP);
 	csr_clear(CSR_MIE,  MIP_MEIP);
+	csr_clear(CSR_MIE,  MIP_MSIP);
 
 	optee_saved_mstatus_sie[current_hartid()] = cpu_context->gp_regs.mstatus;
 	/*enable mstatus.sie*/

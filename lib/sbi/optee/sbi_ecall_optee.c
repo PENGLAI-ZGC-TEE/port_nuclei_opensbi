@@ -28,7 +28,7 @@ static int is_caller_non_secure(void)
 extern u32 optee_saved_sie[PLATFORM_CORE_COUNT];
 extern u32 optee_saved_mstatus_sie[PLATFORM_CORE_COUNT];
 
-static u32 optee_fast_call_saved_mie[PLATFORM_CORE_COUNT] = {0};
+u32 optee_saved_csr_mie[PLATFORM_CORE_COUNT] = {0};
 
 static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 				    const struct sbi_trap_regs *regs,
@@ -47,23 +47,7 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 		 * when linux send fastcall, M mode interrupt should be saved and disabled,
 		 * when tee finish the fastcall, M mode interrupt should be restore.
 		 */
-		if (OPTEE_SMC_IS_FAST_CALL(funcid)) {
-			optee_fast_call_saved_mie[linear_id] =
-				csr_read(CSR_MIE) & (1 << 3 | 1 << 7 | 1 << 11);
-			csr_clear(CSR_MIE,  MIP_MTIP);
-			csr_clear(CSR_MIE,  MIP_MEIP);
-			csr_clear(CSR_MIE,  MIP_MSIP);
-		}
-		/*deal with interrupt forward from non secure*/
-		if (is_forwarding_interrupt() && (funcid == OPTEE_SMC_CALL_RETURN_FROM_RPC)) {
-			cm_gpregs_context_save(NON_SECURE, regs);
-			cm_sysregs_context_save(NON_SECURE);
-			cm_vfp_context_save(NON_SECURE);
-			clear_forwarding_interrupt();
-			cm_set_next_eret_context(SECURE);
-			cm_restore_next_context(SECURE, 0);
-			return 0;
-		}
+		optee_saved_csr_mie[linear_id] = csr_read(CSR_MIE);
 		/*
 		 * This is a fresh request from the non-secure client.
 		 * Save the non-secure state and
@@ -96,6 +80,13 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 		}
 
 		cm_set_next_eret_context(SECURE);
+		/*
+		 * Disable M mode interrupt before enter into secure world,
+		 * secure world will not be interrupted by foreign interrupt
+		 */
+		csr_clear(CSR_MIE, MIP_MEIP);
+		csr_clear(CSR_MIE, MIP_MTIP);
+		csr_clear(CSR_MIE, MIP_MSIP);
 		cm_restore_next_context(SECURE, 0);
 	}
 	/*
@@ -149,6 +140,8 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 	case TEESMC_OPTEED_RETURN_SUSPEND_DONE:
 	case TEESMC_OPTEED_RETURN_SYSTEM_OFF_DONE:
 	case TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE:
+		cm_gpregs_context_save(SECURE, regs);
+		cm_sysregs_context_save(SECURE);
 		/*
 		 * OPTEE reports completion. The OPTEED must have initiated the
 		 * original request through a synchronous entry into OPTEE.
@@ -169,10 +162,6 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 		 * into the non-secure context, save the secure state
 		 * and return to the non-secure state.
 		 */
-		if (optee_fast_call_saved_mie[linear_id]) {
-			csr_write(CSR_MIE, csr_read(CSR_MIE) | optee_fast_call_saved_mie[linear_id]);
-			optee_fast_call_saved_mie[linear_id] = 0;
-		}
 		cm_gpregs_context_save(SECURE, regs);
 		cm_sysregs_context_save(SECURE);
 		cm_vfp_context_save(SECURE);
@@ -188,6 +177,8 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 		cpu_context->gp_regs.mepc +=4;
 
 		cm_set_next_eret_context(NON_SECURE);
+		csr_write(CSR_MIE, optee_saved_csr_mie[linear_id]);
+		csr_set(CSR_MIE, MIP_MEIP);
 		/* Restore non-secure state */
 		cm_restore_next_context(NON_SECURE, 0);
 		/*never come to here!*/
@@ -198,18 +189,18 @@ static int sbi_ecall_optee_handler(unsigned long extid, unsigned long funcid,
 	 */
 	case TEESMC_OPTEED_RETURN_FIQ_DONE:
 		/* After forward FIQ, enable M mode timer/plic interrupt*/
-		csr_set(CSR_MIE,  MIP_MTIP);
-		csr_set(CSR_MIE,  MIP_MEIP);
 		cpu_context = cm_get_context(SECURE);
 		assert(cpu_context);
-		cpu_context->s_csrs.sie = optee_saved_sie[current_hartid()];
-		cpu_context->gp_regs.mstatus |= optee_saved_mstatus_sie[current_hartid()] & MSTATUS_SIE;
+		cpu_context->s_csrs.sie = optee_saved_sie[linear_id];
+		cpu_context->gp_regs.mstatus |= optee_saved_mstatus_sie[linear_id] & MSTATUS_SIE;
 		/*
 		 * Restore non-secure state. There is no need to save the
 		 * secure system register context since OPTEE was supposed
 		 * to preserve it during S-EL1 interrupt handling.
 		 */
 		cm_set_next_eret_context(NON_SECURE);
+		csr_write(CSR_MIE, optee_saved_csr_mie[linear_id]);
+		csr_set(CSR_MIE, MIP_MEIP);
 		cm_restore_next_context(NON_SECURE, 0);
 		/* never come to here! */
 		break;

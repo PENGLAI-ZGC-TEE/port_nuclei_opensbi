@@ -36,6 +36,7 @@ int32_t opteed_init(void)
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
 	entry_point_info_t img_entry_point;
 	uint64_t rc;
+	uint64_t saved_mie;
 
 	/*init cpu context*/
 	sbi_memset(psci_ns_context, 0, sizeof(psci_ns_context));
@@ -54,15 +55,24 @@ int32_t opteed_init(void)
 	img_entry_point.arg2 = FW_JUMP_FDT_ADDR;
 
 	cm_init_my_context(&img_entry_point);
+
+	saved_mie = csr_read(CSR_MIE);
+	/*
+	 * Init optee MIE
+	 * disable all interrupt
+	 */
+	csr_write(CSR_MIE, 0);
 	/*
 	 * Arrange for an entry into OPTEE. It will be returned via
 	 * OPTEE_ENTRY_DONE case
 	 */
 	rc = opteed_synchronous_sp_entry(optee_ctx);
 	assert(rc != 0);
+	/* restore mie of normal world*/
+	csr_write(CSR_MIE, saved_mie);
 
 	sbi_memset(&img_entry_point, 0, sizeof(entry_point_info_t));
-	/*next image is non secure*/
+	/* Next image is non secure */
 	img_entry_point.sec_attr = NON_SECURE;
 	cm_init_my_context(&img_entry_point);
 	cm_set_next_eret_context(NON_SECURE);
@@ -123,4 +133,51 @@ void opteed_synchronous_sp_exit(optee_context_t *optee_ctx, uint64_t ret)
 
 	/* Should never reach here */
 	assert(0);
+}
+
+int32_t opteed_cpu_off_handler(uint32_t linear_id)
+{
+	return 0;
+}
+
+void opteed_cpu_on_handler(uint32_t linear_id)
+{
+	int32_t rc = 0;
+	uint64_t saved_mie;
+	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
+	entry_point_info_t img_entry_point;
+
+	assert(optee_vector_table);
+	assert(get_optee_pstate(optee_ctx->state) == OPTEE_PSTATE_OFF);
+
+	sbi_memset(&img_entry_point, 0, sizeof(entry_point_info_t));
+	img_entry_point.sec_attr = SECURE;
+	/* optee os run addr*/
+	img_entry_point.pc = (uint64_t)&optee_vector_table->cpu_on_entry;
+	img_entry_point.arg0 = linear_id;
+	/* Initialise this cpu's secure context */
+	cm_init_my_context(&img_entry_point);
+
+	saved_mie = csr_read(CSR_MIE);
+	/*
+	 * Init optee MIE
+	 * disable all interrupt
+	 */
+	csr_write(CSR_MIE, 0);
+	/* Enter OPTEE */
+	rc = opteed_synchronous_sp_entry(optee_ctx);
+	/*
+	 * Read the response from OPTEE. A non-zero return means that
+	 * something went wrong while communicating with OPTEE.
+	 */
+	assert(rc == 0);
+	/* restore mie for normal world */
+	csr_write(CSR_MIE, saved_mie);
+
+	/* Update its context to reflect the state OPTEE is in */
+	set_optee_pstate(optee_ctx->state, OPTEE_PSTATE_ON);
+	sbi_memset(&img_entry_point, 0, sizeof(entry_point_info_t));
+	img_entry_point.sec_attr = NON_SECURE;
+	cm_init_my_context(&img_entry_point);
+	cm_set_next_eret_context(NON_SECURE);
 }

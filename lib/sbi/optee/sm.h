@@ -94,5 +94,5 @@ int osm_pmp_set(uint8_t perm);
 int shm_pmp_set(uint8_t perm);
 int plicm_pmp_set(uint8_t perm);
 int timerm_pmp_set(uint8_t perm);
-char * plic_get_sec_interrupt_tab(void);
+
 #endif

@@ -49,20 +49,48 @@ void irqchip_plic_set_pending(int id)
 }
 /**
  * @brief Set the interrupt enable mode object
+ * when secure state is non-secure, set current hart interrupt enable mode.
+ * when secure state is secure.if interrupt num is not bind to any hart, select current
+ * hart as this target core, if have been bind by same hart, then switch enable mode.
+ * else do nothing.
  * 
  * @param int_id global device interrupt id
  * @param mode interrupt enable mode ,0:Machine Mode, 1:Supervisor Mode,-1:disable
  * @return int 0:success, -1:fail
  */
-int irqchip_plic_set_en_mode(unsigned int int_id, unsigned int mode)
+int irqchip_plic_set_en_mode(unsigned int *pintid, unsigned int mode, int secure)
 {
 	int int_src_idx;
 	int ie_val;
-	u32 hartid = current_hartid();
-	struct plic_data *plic = plic_hartid2data[hartid];
+	u32 hartid;
+	struct plic_data *plic;
+	unsigned int int_id;
+
+	hartid = current_hartid();
+	if (secure == 0) {
+		/* judge if int_id is bind to a hart */
+		if ((*pintid >> 16) != 0xFFFF) {
+			/*
+			 * int_id have been bind to a hart, bind hart
+			 * is not equal current return do nothing
+			 */
+			if ((*pintid >> 16) != hartid)
+				return SBI_EFAIL;
+		} else {
+			/* bind int_id to current hart id */
+			*pintid = (hartid << 16) | (*pintid & 0xFFFF);
+		}
+
+		int_id = *pintid & 0xFFFF;
+	}
+	else
+		int_id = *pintid;
+
+	plic = plic_hartid2data[hartid];
 
 	if (!plic)
 		return SBI_EINVAL;
+
 	if (int_id > plic->num_src)
 		return SBI_EINVAL;
 
@@ -92,12 +120,12 @@ int irqchip_plic_set_en_mode(unsigned int int_id, unsigned int mode)
 }
 
 /**
- * @brief Get the interrupt enable mode object
+ * @brief Get Current hart interrupt enable mode
  * 
  * @param int_id :interrupt num
  * @return int :0:Machine Mode enable, 1:Supervisor Mode enable, -1: disabled
  */
-int irqchip_plic_get_en_mode(unsigned int int_id)
+int irqchip_plic_get_en_mode(unsigned int int_id, int secure)
 {
 	int int_src_idx;
 	int ie_val;
@@ -106,6 +134,11 @@ int irqchip_plic_get_en_mode(unsigned int int_id)
 
 	if (!plic)
 		return SBI_EINVAL;
+	if (secure == 0) {
+		/* when secure, get low16 as interrupt number */
+		int_id = int_id & 0xFFFF;
+	}
+
 	if (int_id > plic->num_src)
 		return SBI_EINVAL;
 
