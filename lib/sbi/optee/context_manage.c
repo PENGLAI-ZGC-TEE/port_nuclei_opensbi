@@ -301,6 +301,7 @@ void cm_set_next_eret_context(uint32_t security_state)
 		/* all interrupt trap to M mode
 		 * exception ?
 		 */
+		csr_set(CSR_MLWID, 1);
 		switch_plic_int_enable_mode(SECURE);
 		switch_vector_sec();
 		osm_pmp_set(PMP_NO_PERM);
@@ -314,6 +315,7 @@ void cm_set_next_eret_context(uint32_t security_state)
 		 * Because secure Ext need to transfer to opteeos,
 		 * non-secure Ext redirect to linux os
 		 */
+		csr_clear(CSR_MLWID, 1);
 		switch_plic_int_enable_mode(NON_SECURE);
 		switch_vector_normal();
 		teem_pmp_set(PMP_NO_PERM);

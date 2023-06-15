@@ -5,6 +5,7 @@
 #ifndef _SM_H_
 #define _SM_H_
 
+#ifndef __ASSEMBLER__
 #include <stdint.h>
 #include <sbi/riscv_encoding.h>
 #include <sbi/sbi_trap.h>
@@ -71,8 +72,6 @@ typedef struct entry_point_info {
 	uint64_t arg7;
 } entry_point_info_t;
 
-
-
 #define SECURE     0
 #define NON_SECURE 1
 
@@ -94,5 +93,18 @@ int osm_pmp_set(uint8_t perm);
 int shm_pmp_set(uint8_t perm);
 int plicm_pmp_set(uint8_t perm);
 int timerm_pmp_set(uint8_t perm);
+#endif /*#ifndef __ASSEMBLER__*/
+
+#define CSR_MLWID           0x390
+#define CSR_MATTRI0_BASE    0x7F5
+#define CSR_MATTRI0_MASK    0x7F6
+#define CSR_MATTRI1_BASE    0x7F9
+#define CSR_MATTRI1_MASK    0x7FA
+#define CSR_MATTRI2_BASE    0x7FB
+#define CSR_MATTRI2_MASK    0x7FC
+
+#define SECSHARE_REGION_VALID    (1 << 0)
+#define SECSHARE_ACCESS          (1 << 3)
+#define SECSHARE_REGION_ATTR     (SECSHARE_REGION_VALID | SECSHARE_ACCESS)
 
 #endif

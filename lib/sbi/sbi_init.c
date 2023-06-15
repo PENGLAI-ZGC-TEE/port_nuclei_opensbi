@@ -233,6 +233,7 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 
 	sbi_boot_print_banner(scratch);
 
+	//sbi_printf("wid:%d\n", (int)csr_read(CSR_MLWID));
 	rc = sbi_platform_irqchip_init(plat, TRUE);
 	if (rc) {
 		sbi_printf("%s: platform irqchip init failed (error %d)\n",

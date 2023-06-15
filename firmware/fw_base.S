@@ -12,6 +12,7 @@
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_scratch.h>
 #include <sbi/sbi_trap.h>
+#include "../lib/sbi/optee/sm.h"
 
 #define BOOT_STATUS_RELOCATE_DONE	1
 #define BOOT_STATUS_BOOT_HART_DONE	2
@@ -227,7 +228,17 @@ _scratch_init:
 	sub	tp, tp, a5
 	li	a5, SBI_SCRATCH_SIZE
 	sub	tp, tp, a5
-
+	beqz t1, skip_conf_nsec_mem
+	/*
+	 * Config share memory for other harts,
+	 * hart0 have been config by freeloader.
+	 */
+	li a4, 0xFF000000
+	csrw CSR_MATTRI0_MASK, a4
+	li a4, 0xA1000000
+	addi a4, a4, SECSHARE_REGION_ATTR
+	csrw CSR_MATTRI0_BASE, a4
+skip_conf_nsec_mem:
 	/* Initialize scratch space */
 	/* Store fw_start and fw_size in scratch space */
 	la	a4, _fw_start

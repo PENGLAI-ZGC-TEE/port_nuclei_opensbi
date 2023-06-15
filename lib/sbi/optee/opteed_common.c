@@ -71,11 +71,22 @@ int32_t opteed_init(void)
 	/* restore mie of normal world*/
 	csr_write(CSR_MIE, saved_mie);
 
+	/*
+	 * Set optee share memory 0xA0200000~0xA0400000 to non-secure,
+	 * optee share memory area configured in Linux SDK top Makefile.
+	 * here need to be improved.
+	 */
+	csr_write(CSR_MATTRI1_MASK, 0xFFF00000);
+	csr_write(CSR_MATTRI1_BASE, 0xA0200000 | SECSHARE_REGION_ATTR);
+	csr_write(CSR_MATTRI2_MASK, 0xFFF00000);
+	csr_write(CSR_MATTRI2_BASE, 0xA0300000 | SECSHARE_REGION_ATTR);
+
 	sbi_memset(&img_entry_point, 0, sizeof(entry_point_info_t));
 	/* Next image is non secure */
 	img_entry_point.sec_attr = NON_SECURE;
 	cm_init_my_context(&img_entry_point);
 	cm_set_next_eret_context(NON_SECURE);
+	csr_clear(CSR_MLWID, 1);
 
 	return rc;
 }
@@ -174,10 +185,21 @@ void opteed_cpu_on_handler(uint32_t linear_id)
 	/* restore mie for normal world */
 	csr_write(CSR_MIE, saved_mie);
 
+	/*
+	 * Set optee share memory 0xA0200000~0xA0400000 to non-secure,
+	 * optee share memory area configured in Linux SDK top Makefile.
+	 * here need to be improved.
+	 */
+	csr_write(CSR_MATTRI1_MASK, 0xFFF00000);
+	csr_write(CSR_MATTRI1_BASE, 0xA0200000 | SECSHARE_REGION_ATTR);
+	csr_write(CSR_MATTRI2_MASK, 0xFFF00000);
+	csr_write(CSR_MATTRI2_BASE, 0xA0300000 | SECSHARE_REGION_ATTR);
+
 	/* Update its context to reflect the state OPTEE is in */
 	set_optee_pstate(optee_ctx->state, OPTEE_PSTATE_ON);
 	sbi_memset(&img_entry_point, 0, sizeof(entry_point_info_t));
 	img_entry_point.sec_attr = NON_SECURE;
 	cm_init_my_context(&img_entry_point);
 	cm_set_next_eret_context(NON_SECURE);
+	csr_clear(CSR_MLWID, 1);
 }
