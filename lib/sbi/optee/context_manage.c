@@ -96,8 +96,10 @@ void cm_setup_context(cpu_context_t *ctx, const entry_point_info_t *ep)
 	ctx->gp_regs.a5 = ep->arg5;
 	ctx->gp_regs.a6 = ep->arg6;
 	ctx->gp_regs.a7 = ep->arg7;
-	if (ep->sec_attr == SECURE)
+	if (ep->sec_attr == SECURE) {
 		ctx->s_csrs.sie = 0;
+		ctx->s_csrs.scounteren = csr_read(CSR_SCOUNTEREN);
+	}
 	else
 		ctx->s_csrs.sie = csr_read(CSR_SIE);
 }
