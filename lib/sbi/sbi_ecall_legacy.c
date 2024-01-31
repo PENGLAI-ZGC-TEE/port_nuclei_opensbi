@@ -106,6 +106,9 @@ static int sbi_ecall_legacy_handler(unsigned long extid, unsigned long funcid,
 			ret = sbi_tlb_request(hmask, 0, &tlb_info);
 		}
 		break;
+	case SBI_EXT_0_1_CURRENT_HART:
+		ret = source_hart;
+		break;
 	case SBI_EXT_0_1_SHUTDOWN:
 		sbi_system_reset(SBI_SRST_RESET_TYPE_SHUTDOWN,
 				 SBI_SRST_RESET_REASON_NONE);
