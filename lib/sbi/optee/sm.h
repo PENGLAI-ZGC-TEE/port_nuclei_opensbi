@@ -76,7 +76,7 @@ typedef struct entry_point_info {
 #define SECURE     0
 #define NON_SECURE 1
 
-#define PLATFORM_CORE_COUNT		8
+#define PLATFORM_CORE_COUNT		1
 
 #define PMP_UNKNOWN_ERROR                   -1U
 #define PMP_SUCCESS                         0
