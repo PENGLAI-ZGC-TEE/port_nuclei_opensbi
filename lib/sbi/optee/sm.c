@@ -14,10 +14,8 @@
 #include <opteed_private.h>
 
 extern struct sbi_ecall_extension ecall_optee;
-static int sm_init_done = 0;
-static int sm_region_id = 0, os_region_id = 0;
-int tee_region_id = 0, shm_region_id = 0;
-int plicm_region_id = 0,timer_region_id = 0;
+static int sm_init_done;
+static int sm_region_id, os_region_id, tee_region_id, shm_region_id, plicm_region_id, secure_device_region_id;
 
 int osm_pmp_set(uint8_t perm)
 {
@@ -43,72 +41,71 @@ int plicm_pmp_set(uint8_t perm)
 	return pmp_set_keystone(plicm_region_id, perm);
 }
 
-int timerm_pmp_set(uint8_t perm)
+int secure_device_pmp_set(uint8_t perm)
 {
 	/* in case of TEE SHARE MEM, PMP cfg is exactly the opposite.*/
-	return pmp_set_keystone(timer_region_id, perm);
+	return pmp_set_keystone(secure_device_region_id, perm);
 }
 
-int smm_init()
+static int smm_init()
 {
 	int region = -1;
 	int ret	   = pmp_region_init_atomic(SMM_BASE, SMM_SIZE, PMP_PRI_TOP,
 					    &region, 0);
-	if (ret)
+	if (ret != PMP_SUCCESS)
 		return -1;
 
 	return region;
 }
 
-int osm_init()
+static int osm_init()
 {
 	int region = -1;
 	int ret = pmp_region_init_atomic(0, -1UL, PMP_PRI_BOTTOM, &region, 1);
-	if (ret)
+	if (ret != PMP_SUCCESS)
 		return -1;
 
 	return region;
 }
 
-int teem_init()
+static int teem_init()
 {
 	int region = -1;
 	int ret = pmp_region_init_atomic(OPTEE_TZDRAM_BASE, OPTEE_TZDRAM_SIZE,
 					 PMP_PRI_ANY, &region, 0);
-	if (ret)
+	if (ret != PMP_SUCCESS)
 		return -1;
 
 	return region;
 }
 
-int shm_init()
+static int shm_init()
 {
 	int region = -1;
 	int ret	   = pmp_region_init_atomic(OPTEE_SHMEM_BASE, OPTEE_SHMEM_SIZE,
 					    PMP_PRI_BOTTOM, &region, 0);
-	if (ret)
+	if (ret != PMP_SUCCESS)
 		return -1;
 
 	return region;
 }
 
-int plicm_init()
+static int plicm_init()
 {
 	int region = -1;
 	int ret = pmp_region_init_atomic(OPTEE_PLIC_BASE, OPTEE_PLIC_SIZE,
 					 PMP_PRI_ANY, &region, 0);
-	if (ret)
+	if (ret != PMP_SUCCESS)
 		return -1;
 
 	return region;
 }
-
-int timerm_init()
+static int secure_device_init()
 {
 	int region = -1;
-	int ret = pmp_region_init_atomic(OPTEE_TIMER_BASE, OPTEE_TIMER_SIZE,
-					 PMP_PRI_ANY, &region, 0);
-	if (ret)
+	int ret = pmp_region_init_atomic(OPTEE_TIMER_BASE, OPTEE_TIMER_SIZE, 
+					PMP_PRI_ANY, &region, 0);
+	if (ret != PMP_SUCCESS)
 		return -1;
 
 	return region;
@@ -158,10 +155,11 @@ void sm_init(bool cold_boot)
 				"[SM] intolerable error - failed to initialize PLIC memory");
 			sbi_hart_hang();
 		}
-		timer_region_id = timerm_init();
-		if (timer_region_id < 0) {
+
+		secure_device_region_id = secure_device_init();
+		if (secure_device_region_id < 0) {
 			sbi_printf(
-				"[SM] intolerable error - failed to initialize PLIC memory");
+				"[SM] intolerable error - failed to initialize Secure device memory");
 			sbi_hart_hang();
 		}
 

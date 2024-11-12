@@ -308,7 +308,7 @@ void cm_set_next_eret_context(uint32_t security_state)
 		osm_pmp_set(PMP_NO_PERM);
 		shm_pmp_set(PMP_ALL_PERM);
 		plicm_pmp_set(PMP_ALL_PERM);
-		timerm_pmp_set(PMP_ALL_PERM);
+		secure_device_pmp_set(PMP_ALL_PERM);
 		teem_pmp_set(PMP_ALL_PERM);
 	} else if (security_state == NON_SECURE) {
 		/* S/T int trap delegate to S mode,
@@ -321,7 +321,7 @@ void cm_set_next_eret_context(uint32_t security_state)
 		teem_pmp_set(PMP_NO_PERM);
 		shm_pmp_set(PMP_ALL_PERM);
 		plicm_pmp_set(PMP_ALL_PERM);
-		timerm_pmp_set(PMP_ALL_PERM);
+		secure_device_pmp_set(PMP_ALL_PERM);
 		osm_pmp_set(PMP_ALL_PERM);
 	} else {
 		sbi_printf("not support secure state!\n");
