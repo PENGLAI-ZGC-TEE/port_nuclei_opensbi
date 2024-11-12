@@ -69,6 +69,14 @@ ifdef FW_OPTEE_SHMEM_SIZE
 firmware-genflags-y += -DFW_OPTEE_SHMEM_SIZE=$(FW_OPTEE_SHMEM_SIZE)
 endif
 
+ifdef FW_OPTEE_PLIC_BASE
+firmware-genflags-y += -DFW_OPTEE_PLIC_BASE=$(FW_OPTEE_PLIC_BASE)
+endif
+
+ifdef FW_OPTEE_PLIC_SIZE
+firmware-genflags-y += -DFW_OPTEE_PLIC_SIZE=$(FW_OPTEE_PLIC_SIZE)
+endif
+
 ifdef CFG_WITH_VFP
 firmware-genflags-y += -DCFG_WITH_VFP
 endif
