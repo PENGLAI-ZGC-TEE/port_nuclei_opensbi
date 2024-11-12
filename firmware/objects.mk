@@ -77,6 +77,14 @@ ifdef FW_OPTEE_PLIC_SIZE
 firmware-genflags-y += -DFW_OPTEE_PLIC_SIZE=$(FW_OPTEE_PLIC_SIZE)
 endif
 
+ifdef FW_OPTEE_SECURE_DEVICE_BASE
+firmware-genflags-y += -DFW_OPTEE_SECURE_DEVICE_BASE=$(FW_OPTEE_SECURE_DEVICE_BASE)
+endif
+
+ifdef FW_OPTEE_SECURE_DEVICE_SIZE
+firmware-genflags-y += -DFW_OPTEE_SECURE_DEVICE_SIZE=$(FW_OPTEE_SECURE_DEVICE_SIZE)
+endif
+
 ifdef CFG_WITH_VFP
 firmware-genflags-y += -DCFG_WITH_VFP
 endif

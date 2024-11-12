@@ -103,7 +103,7 @@ static int plicm_init()
 static int secure_device_init()
 {
 	int region = -1;
-	int ret = pmp_region_init_atomic(OPTEE_TIMER_BASE, OPTEE_TIMER_SIZE, 
+	int ret = pmp_region_init_atomic(OPTEE_SECURE_DEVICE_BASE, OPTEE_SECURE_DEVICE_SIZE, 
 					PMP_PRI_ANY, &region, 0);
 	if (ret != PMP_SUCCESS)
 		return -1;
